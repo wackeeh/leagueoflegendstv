@@ -1,0 +1,8 @@
+v1.0
+- Initial version
+
+v1.0.1
+- Renamed to League of Legends TV
+- Added Learning Center! For now just Leaguecraft 101 Summoner School Videos, but feel free to submit others
+- Moved the Featured Events to a different listing
+- Added fanart.jpg
