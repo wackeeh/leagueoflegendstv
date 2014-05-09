@@ -1,5 +1,6 @@
 from collections import namedtuple
 import json
+import datetime
 from operator import attrgetter
 
 from resources.lib.BeautifulSoup import BeautifulSoup
@@ -11,11 +12,22 @@ LOLMATCHESURL = PluginUtils.unescape(PluginUtils.get_string(30106))
 ACTIVE_STRING = PluginUtils.get_string(30050)
 FINISHED_STRING = PluginUtils.get_string(30051)
 FEATURED_STRING = PluginUtils.get_string(30052)
+FINISHEDFEATURED_STRING = PluginUtils.get_string(30053)
+
+PAGE_SIZE = 10
 #NOTSTREAMED_STRING = "**Not Streamed**"
 
-def load_events(sortByStatus):
+def load_events(sortByStatus, after):
+    # The reddit api does things like this:
+    # /r/bla.json?limit=pagesize&after=postId
+    # Let's build a URL
 
-    response = PluginUtils.do_request(LOLEVENTURL)
+    urlAppend = '?limit=' + str(PAGE_SIZE)
+
+    if (after is not 'none'):
+        urlAppend += '&after=' + after
+    
+    response = PluginUtils.do_request(LOLEVENTURL + urlAppend)
     if (response is None):
         return None
 
@@ -24,8 +36,10 @@ def load_events(sortByStatus):
     # Now lets parse results
     decoded_data = json.load(response)
     root = decoded_data['data']
+    # after link = 
+    afterPost = root['after']
 
-    LoLEvent = namedtuple('LoLEvent', 'title status eventId imageUrl')
+    LoLEvent = namedtuple('LoLEvent', 'title status eventId createdOn imageUrl')
 
     # For Each Item in Children
     for post in root['children']:
@@ -34,6 +48,11 @@ def load_events(sortByStatus):
             soup = BeautifulSoup(PluginUtils.unescape(html))
 
             imgUrl = ''
+            isEvent = False
+            link = soup.find('a', href='#EVENT_TITLE')
+            if (link is not None):
+                isEvent = True
+
             link = soup.find('a', href='#EVENT_PICTURE')
             if (link is not None):
                 imgUrl = link.title
@@ -44,6 +63,7 @@ def load_events(sortByStatus):
         # link_flair_css_class: "finished"
         # link_flair_css_class: "twitchongoing"
         # link_flair_css_class: "featured"
+        # link_flair_css_class: "finishedfeatured"
         # link_flair_css_class: null
         flair_css = post['data']['link_flair_css_class']
         if (flair_css is not None):
@@ -53,10 +73,18 @@ def load_events(sortByStatus):
                 status = 1
             if (flair_css.lower()== FINISHED_STRING):
                 status = 2
+            if (flair_css.lower()== FINISHEDFEATURED_STRING):
+                status = 2
+
+        # Some don't have link_flair_css_class but are events
+        if (status == 99 and isEvent):
+            status = 98
+
 
         childEvent = LoLEvent(title = post['data']['title'],
                               status = status,
                               eventId = post['data']['id'],
+                              createdOn = datetime.datetime.fromtimestamp(int(post['data']['created'])),
                               imageUrl = imgUrl)
 
         events.append(childEvent)
@@ -64,9 +92,9 @@ def load_events(sortByStatus):
 
     if (sortByStatus):
         # sort
-        return sorted(events, key=attrgetter('status'))
+        return afterPost, sorted(events, key=attrgetter('status'))
     else:
-        return events
+        return afterPost, events
 
 def load_event_content(eventId):
 

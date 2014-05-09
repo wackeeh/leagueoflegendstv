@@ -14,7 +14,7 @@ def get_string(key):
 # Static Method that tries to execute the request two times, with 3 second delay
 def do_request(url):
 
-    req = urllib2.Request(url, headers={'User-Agent' : "Magic Browser"})
+    req = urllib2.Request(url, headers={'User-Agent' : "XBMC LOL EVENT VODS"})
     response = None
 
     try:

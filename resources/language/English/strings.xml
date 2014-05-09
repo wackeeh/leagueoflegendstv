@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<strings>
+  <!-- Plugin name -->
+  <string id="30000">League of Legends TV</string>
+  <!-- Main Menu Strings -->
+  <string id="30001">Reddit LoLEventVODs</string>
+  <string id="30002">Learning Center</string>
+  <string id="30003">Settings</string>
+  <!-- Feature Event Strings -->
+  <string id="30004">Show All...</string>
+  <!-- Labels Strings -->
+  <string id="30005">In Progress</string>
+  <string id="30006">Finished</string>
+  <string id="30007">Featured</string>
+  <string id="30008">{3}{0} - {1}{4} vs. {2}{5}</string>
+  <!-- Learning Center Strings -->
+  <string id="30009">LeagueCraft 101</string>
+  <!-- Other strings -->
+  <string id="30010">Show more...</string>
+  <string id="30011">Unknown</string>
+  <!-- Reddit Parsing Strings -->
+  <string id="30050">ongoing</string>
+  <string id="30051">finished</string>
+  <string id="30052">featured</string>
+  <string id="30053">finishedfeatured</string>
+  <!-- Settings (such as URL) Strings -->
+  <string id="30100">plugin://plugin.video.youtube/?action=play_video&amp;videoid=%s</string>
+  <string id="30101">http://img.youtube.com/vi/%s/hqdefault.jpg</string>
+  <string id="30102">Featured</string>
+  <string id="30103">http://euw.lolesports.com/na-lcs/2014/split1/standings</string>
+  <string id="30104">http://euw.lolesports.com/eu-lcs/2014/split1/standings</string>
+  <string id="30105">http://www.reddit.com/r/loleventvods/.json</string>
+  <string id="30106">http://www.reddit.com/r/loleventvods/comments/%s/.json</string>
+  <!-- Settings XML -->
+  <string id="30300">Spoiler Settings</string>
+  <string id="30301">Highlight Recommended Games in the Match overview?</string>
+  <string id="30302">Include the current LCS standings in Match Overview?</string>
+</strings>

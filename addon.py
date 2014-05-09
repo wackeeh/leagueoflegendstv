@@ -4,7 +4,6 @@ from resources.lib.LoLLearningCenter import LearningCenter
 from resources.lib import PluginUtils
 from xbmcswift2 import Plugin
 
-
 plugin = Plugin()
 
 # Main Menu
@@ -40,29 +39,37 @@ def show_featured_events():
             if (item['label'].lower().find('featured') > -1):
                 show_items.append(item)
 
-    item  = { 'label': PluginUtils.get_string(30004), 'path': plugin.url_for('show_events') }
+    item  = { 'label': PluginUtils.get_string(30004), 'path': plugin.url_for('show_events', after='none') }
     show_items.append(item)
     return show_items
 
 
-@plugin.route('/loleventvods/')
+@plugin.route('/loleventvods/<after>')
 @plugin.cached(TTL=10)
-def show_events():
+def show_events(after='none'):
     # False uses the reddit sorting
-    events = LoLEventVODs.load_events(True)
+
+    afterPost, events = LoLEventVODs.load_events(True, after)
     items = []
 
     for lolevent in events:
+        date = lolevent.createdOn.strftime('%d/%m/%y')
+
         status = PluginUtils.get_string(30005)
         if (lolevent.status < 99):
             if (lolevent.status == 1):
                 status = PluginUtils.get_string(30006)
             if (lolevent.status == 0):
                 status = PluginUtils.get_string(30007)
-            item  = { 'label': lolevent.title + " (" + status + ")", 'path': plugin.url_for('show_event', eventId=lolevent.eventId),
-                      'thumbnail' : lolevent.imageUrl
+            item  = { 'label': lolevent.title + " (" + status + ")", 'label2': date, 'path': plugin.url_for('show_event', eventId=lolevent.eventId),
+                      'thumbnail' : lolevent.imageUrl, 'info_type': 'video', 'info' : '{date:' + date +"}"
             }
             items.append(item)
+
+
+    if (afterPost is not None):
+        item  = { 'label': PluginUtils.get_string(30010), 'path': plugin.url_for('show_events', after=afterPost) }
+        items.append(item)        
 
     return items
 
