@@ -6,3 +6,7 @@ v1.0.1
 - Added Learning Center! For now just Leaguecraft 101 Summoner School Videos, but feel free to submit others
 - Moved the Featured Events to a different listing
 - Added fanart.jpg
+
+v1.1
+- Optimized parsing of LoLEventVods so it includes LCS Preview shows
+- Added support for the strawpoll (not working yet)

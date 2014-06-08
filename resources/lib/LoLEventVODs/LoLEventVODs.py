@@ -1,10 +1,13 @@
-from collections import namedtuple
 import json
 import datetime
-from operator import attrgetter
+import re
 
-from resources.lib.BeautifulSoup import BeautifulSoup
+from collections import namedtuple
+from operator import attrgetter
+from bs4 import BeautifulSoup
 from resources.lib import PluginUtils
+from resources.lib.LoLEventVODs import StrawPoll
+
 
 # CONSTANTS
 LOLEVENTURL = PluginUtils.unescape(PluginUtils.get_string(30105))
@@ -45,6 +48,7 @@ def load_events(sortByStatus, after):
     for post in root['children']:
         html = post['data']['selftext_html']
         if (html is not None):
+        
             soup = BeautifulSoup(PluginUtils.unescape(html))
 
             imgUrl = ''
@@ -52,10 +56,14 @@ def load_events(sortByStatus, after):
             link = soup.find('a', href='#EVENT_TITLE')
             if (link is not None):
                 isEvent = True
-
+            
+            link = soup.find('a', href="#EVENT_DESCRIPTION")
+            if (link is not None):
+                isEvent = True
+                    
             link = soup.find('a', href='#EVENT_PICTURE')
             if (link is not None):
-                imgUrl = link.title
+                imgUrl = link['title']
 
         status = 99
         # Using numbers for status so we can easily sort by this
@@ -88,98 +96,126 @@ def load_events(sortByStatus, after):
                               imageUrl = imgUrl)
 
         events.append(childEvent)
-
-
+        
     if (sortByStatus):
         # sort
         return afterPost, sorted(events, key=attrgetter('status'))
     else:
         return afterPost, events
 
-def load_event_content(eventId):
-
-    LoLEventDay = namedtuple('LoLEventDay', 'dayId day matches recommended imageUrl')
-    LoLEventMatch = namedtuple('LoLEventMatch', 'gameId team1 team2 videoLinks')
+def load_event_content(eventId, includeStrawpoll):
+    
+    LoLEventDay = namedtuple('LoLEventDay', 'dayId day previewShow matches imageUrl')
+    LoLEventMatch = namedtuple('LoLEventMatch', 'gameId team1 team2 videoLinks strawPollScore')
 
     url = LOLMATCHESURL % eventId
 
     response = PluginUtils.do_request(url)
     if (response is None):
         return None
+        
+    
     # Now lets parse results
     decoded_data = json.load(response)
 
     selfText = decoded_data[0]['data']['children'][0]['data']['selftext_html']
 
-    eventTitle = ''
     days = []
 
-    soup = BeautifulSoup(PluginUtils.unescape(selfText))
+    data = PluginUtils.unescape(selfText).replace("<sup>", "").replace("</sup>", "")
 
-    # Get all the recommended matches, we add those to the events
-    # We do it like this Game H1_C1_C4
-    recommended = ''
-    #a href="/spoiler"
-    spoilers = soup.findAll("a", href="/spoiler")
-    if (spoilers is not None):
-        for spoiler in spoilers:
-            # add them to the list
-            games = spoiler.text.replace(',', '_')
-            recommended += games + "_"
+    soup = BeautifulSoup(data)
 
     imgUrl = ''
     link = soup.find('a', href='#EVENT_PICTURE')
     if (link is not None):
-        imgUrl = link.title
+        imgUrl = link['title']
+    
+    # This method loops through all the h2 / h4 tags that have week and day in there
+    # So, now that we have the day, we can add it
+    for node in soup.find_all(name=re.compile("h\d{1}")):
+        dayTitle = node.text
+        
+        # Create a tag based on the title
+        idx = dayTitle
+        table = node.find_next_sibling('table')
+        
+        strawpoll = ''
+        ulTag = table.find_next_sibling('ul')
+        if (ulTag is not None):
+            sp = ulTag.find('strong', text=re.compile("recommended games:", re.IGNORECASE))
+            if (sp is not None):
+                links = sp.parent.find('a')
+                if (links.text.lower() == "strawpoll"):
+                    strawpoll = links['href']  
 
-    # find all tables
-    tables = soup.findAll("table")
-    for idx, table in enumerate(tables):
-        if (table is not None):
+        pollResults = None
+        if (strawpoll != '') and (includeStrawpoll):
+            pollResults = StrawPoll.get_poll_results(strawpoll)
+            
+        matches=[]
+        
+        matchesList = {}
+        # Parse table
+        # So first, get all the links
+        links = table.find_all('a', href=re.compile("www.youtube.com/watch"))
+        for link in links:
+            row = link.parent.parent
+            #print link.text
+            if (row is not None):
+                id = row.find_next('td').text.strip()
+                tdVs = row.find('td', text=re.compile('vs', re.IGNORECASE))
+                team1 = tdVs.find_previous('td')
+                team2 = tdVs.find_next('td')
+                video = {"text" : link.text, "link": link['href'] }
+                
+                if (id not in matchesList):
+                    #matchesList.append(match)
+                    matchesList[id] = {}
+                    matchesList[id]["team1"] = team1.text.strip()
+                    matchesList[id]["team2"] = team2.text.strip()
+                    matchesList[id]["videos"] = []
+                    matchesList[id]["videos"].append(video)
+                else:
+                    matchesList[id]["videos"].append(video)
+                
+        for match in matchesList:
+            videos = []
+            
+            for video in matchesList[match]['videos']:
+                youTubeData = PluginUtils.parse_youtube_url(video['link'])
+                videos.append({'text' : video['text'],
+                        'videoId' : youTubeData['videoId'],
+                        'time' : youTubeData['time'] })
 
-            titleLink = table.find("a", href="http://www.table_title.com")
-            if (titleLink is not None):
-                eventTitle = titleLink['title']
+            votes = 0
+            if (pollResults is not None):
+                for result in pollResults:
+                    print result
+                    if (result.team1 == matchesList[match]['team1']) or (result.team1 == matchesList[match]['team2']):
+                        votes = result.votes
+                
+            matches.append(LoLEventMatch(match, matchesList[match]['team1'], matchesList[match]['team2'], videos, votes))    
+                
 
-            YouTubeColumns = []
-            Team1Index = -1
-            Team2Index = -1
+        previewShow = None
+        ulTag = node.find_next('ul')
+        if (ulTag is not None):
+            preview = ulTag.find('strong', text=re.compile("LCS Preview Show", re.IGNORECASE))
+            if (preview is not None):
+                for links in preview.parent.find_all('a'):
+                    if (links.text.lower() == "youtube"):
+                    #youTubeData = PluginUtils.parse_youtube_url(node.nextSibling['href'])
+                        youTubeData = PluginUtils.parse_youtube_url(links['href'])
+                        previewShow = {'text' : 'Preview Show',
+                                    'videoId' : youTubeData['videoId'],
+                                    'time' : youTubeData['time'] }
 
-            # Investigate the right columns for youtube links
-            rows = table.find("thead").findAll("tr")
-            for row in rows :
-                cols = row.findAll("th")
-                for i, col in enumerate(cols):
-                 if (col.text.lower() == "youtube"):
-                     YouTubeColumns.append(i)
-                 if (col.text.lower() == "team 1"):
-                     Team1Index = i
-                 if (col.text.lower() == "team 2"):
-                     Team2Index = i
-
-            #
-            matches=[]
-
-            rows = table.find("tbody").findAll("tr")
-            for row in rows :
-                videos = []
-                cols = row.findAll("td")
-                if (cols is not None):
-                    for yv in YouTubeColumns:
-                        if (cols[yv] is not None):
-                            if (cols[yv].a is not None):
-
-                                youTubeData = PluginUtils.parse_youtube_url(cols[yv].a['href'])
-                                videos.append({'text' : cols[yv].a.text,
-                                               'videoId' : youTubeData['videoId'],
-                                               'time' : youTubeData['time'] })
-
-                matches.append(LoLEventMatch(cols[0].text, cols[Team1Index].text, cols[Team2Index].text, videos))
-
+        if (len(matches) > 0):
             days.append(LoLEventDay(dayId = idx,
-                                day=eventTitle,
-                                matches = matches,
-                                recommended = recommended,
-                                imageUrl = imgUrl))
+                day=dayTitle,
+                previewShow = previewShow,
+                matches = matches,
+                imageUrl = imgUrl))
+    
     return days
-

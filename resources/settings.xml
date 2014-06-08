@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <settings>
     <category label="30300">
-        <setting label="30301" type="bool"   id="highlight_recommended_games" default="false"/>
-        <setting label="30302" type="bool"   id="include_current_lcs_standings" default="false"/>
+        <setting label="30301" type="bool" id="highlight_recommended_games" default="false"/>
     </category>
 </settings>

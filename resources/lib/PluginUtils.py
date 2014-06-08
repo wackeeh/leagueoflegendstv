@@ -12,9 +12,9 @@ def get_string(key):
     return string
 
 # Static Method that tries to execute the request two times, with 3 second delay
-def do_request(url):
+def do_request(url, userAgent="XBMC LOL EVENT VODS"):
 
-    req = urllib2.Request(url, headers={'User-Agent' : "XBMC LOL EVENT VODS"})
+    req = urllib2.Request(url, headers={'User-Agent' : userAgent})
     response = None
 
     try:
