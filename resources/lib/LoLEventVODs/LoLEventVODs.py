@@ -63,7 +63,8 @@ def load_events(sortByStatus, after):
                     
             link = soup.find('a', href='#EVENT_PICTURE')
             if (link is not None):
-                imgUrl = link['title']
+                if (link.has_attr('title')):
+                    imgUrl = link['title']
 
         status = 99
         # Using numbers for status so we can easily sort by this
@@ -146,8 +147,9 @@ def load_event_content(eventId, includeStrawpoll):
             sp = ulTag.find('strong', text=re.compile("recommended games:", re.IGNORECASE))
             if (sp is not None):
                 links = sp.parent.find('a')
-                if (links.text.lower() == "strawpoll"):
-                    strawpoll = links['href']  
+                if (links is not None):
+                    if (links.text.lower() == "strawpoll"):
+                        strawpoll = links['href']  
 
         pollResults = None
         if (strawpoll != '') and (includeStrawpoll):
